@@ -1,22 +1,31 @@
 import { useEffect, useState } from "react";
 import { Alert, FlatList } from "react-native";
-import Realm from 'realm'
+import Realm from "realm";
 import { useUser } from "@realm/react";
 import { useNavigation } from "@react-navigation/native";
 import dayjs from "dayjs";
+import Toast from "react-native-toast-message";
+import { CloudArrowUp } from "phosphor-react-native";
 
 import { useQuery, useRealm } from "../../libs/realm";
 import { Historic } from "../../libs/realm/schemas/Historic";
+import {
+  getLastSyncTimestamp,
+  saveLastSyncTimestamp,
+} from "../../libs/asyncStorage/syncStorage";
 
 import { HomeHeader } from "../../components/HomeHeader";
 import { CarStatus } from "../../components/CarStatus";
+import { HistoricCard, HistoricCardProps } from "../../components/HistoricCard";
+import { TopMessage } from "../../components/TopMessage";
 
 import { Container, Content, Label, Title } from "./styles";
-import { HistoricCard, HistoricCardProps } from "../../components/HistoricCard";
+
 
 export function Home() {
   const [vehicleInUse, setVehicleInUse] = useState<Historic | null>(null);
   const [vehicleHistoric, setVehicleHistoric] = useState<HistoricCardProps[]>([]);
+  const [percentageToSync, setPercentageToSync] = useState<string | null>(null);
 
   const { navigate } = useNavigation();
 
@@ -43,15 +52,17 @@ export function Home() {
     }
   }
 
-  function fetchHistoric() {
+  async function fetchHistoric() {
     try {
       const response = historic.filtered("status = 'arrival' SORT(created_at DESC)");
+
+      const lastSync = await getLastSyncTimestamp();
 
       const formattedHistoric = response.map((item) => {
         return {
           id: item._id!.toString(),
           licensePlate: item.license_plate,
-          isSync: false,
+          isSync: lastSync > item.updated_at!.getTime(),
           created: dayjs(item.created_at).format("[Saída em] DD/MM/YYYY [às] HH:mm"),
         };
       });
@@ -66,9 +77,23 @@ export function Home() {
     navigate("arrival", { id });
   }
 
-  function progressNotification(transferred: number, transferable: number) {
+  async function progressNotification(transferred: number, transferable: number) {
     const percentage = (transferred / transferable) * 100;
-    console.log("TRANSFERIDO => ", `${percentage}%`)
+
+    if (percentage === 100) {
+      await saveLastSyncTimestamp();
+      await fetchHistoric();
+      setPercentageToSync(null)
+
+      Toast.show({
+        type: "info",
+        text1: "Todos os dados estão sincronizados.",
+      });
+    } 
+
+    if(percentage < 100) {
+      setPercentageToSync(`${percentage.toFixed(0)}% sincronizado.`)
+    }
   }
 
   useEffect(() => {
@@ -79,10 +104,10 @@ export function Home() {
     realm.addListener("change", () => fetchVehicleInUse());
 
     return () => {
-      if(realm && !realm.isClosed) {
+      if (realm && !realm.isClosed) {
         realm.removeListener("change", fetchVehicleInUse);
       }
-    }
+    };
   }, []);
 
   useEffect(() => {
@@ -91,16 +116,18 @@ export function Home() {
 
   useEffect(() => {
     realm.subscriptions.update((mutableSubs, realm) => {
-      const historicByUserQuery = realm.objects('Historic').filtered(`user_id = '${user!.id}'`)
-    
-      mutableSubs.add(historicByUserQuery, {name: 'historic_by_user'})
-    })
-  }, [realm])
+      const historicByUserQuery = realm
+        .objects("Historic")
+        .filtered(`user_id = '${user!.id}'`);
+
+      mutableSubs.add(historicByUserQuery, { name: "historic_by_user" });
+    });
+  }, [realm]);
 
   useEffect(() => {
     const syncSession = realm.syncSession;
 
-    if(!syncSession) {
+    if (!syncSession) {
       return;
     }
 
@@ -108,13 +135,17 @@ export function Home() {
       Realm.ProgressDirection.Upload,
       Realm.ProgressMode.ReportIndefinitely,
       progressNotification
-    )
-    
-    return () => syncSession.removeProgressNotification(progressNotification)
-  }, [])
+    );
+
+    return () => syncSession.removeProgressNotification(progressNotification);
+  }, []);
 
   return (
     <Container>
+      {
+        percentageToSync && <TopMessage title={percentageToSync} icon={CloudArrowUp} />
+      }
+
       <HomeHeader />
 
       <Content>

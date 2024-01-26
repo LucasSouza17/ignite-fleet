@@ -1,4 +1,4 @@
-import * as dotenv from 'dotenv';
+import * as dotenv from "dotenv";
 
 dotenv.config();
 
@@ -22,6 +22,11 @@ module.exports = {
         backgroundColor: "#202024",
       },
       package: "com.lucassouza.ignitefleet",
+      permissions: [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+      ],
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -34,6 +39,9 @@ module.exports = {
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
       },
+      infoPlit: {
+        UIBackgroundModes: ["location"],
+      },
     },
     web: {
       favicon: "./assets/favicon.png",
@@ -44,6 +52,8 @@ module.exports = {
         {
           locationAlwaysAndWhenInUsePermission:
             "Permitir que $(PRODUCT_NAME) use sua localização.",
+          isAndroidBackgroundLocationEnabled: true,
+          isIosBackgroundLocationEnabled: true,
         },
       ],
     ],

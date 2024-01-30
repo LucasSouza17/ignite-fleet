@@ -1,12 +1,14 @@
 import {
-  startLocationUpdatesAsync,
-  hasStartedLocationUpdatesAsync,
   Accuracy,
+  hasStartedLocationUpdatesAsync,
+  startLocationUpdatesAsync,
   stopLocationUpdatesAsync,
-  ActivityType
 } from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import { removeStorageLocations, saveStorageLocation } from "../libs/asyncStorage/locationStorage";
+import {
+  removeStorageLocations,
+  saveStorageLocation,
+} from "../libs/asyncStorage/locationStorage";
 
 export const BACKGROUND_TASK_NAME = "location-tracking";
 
@@ -22,7 +24,7 @@ TaskManager.defineTask(BACKGROUND_TASK_NAME, async ({ data, error }: any) => {
       const currentLocation = {
         latitude: coords.latitude,
         longitude: coords.longitude,
-        timestamp: timestamp,
+        timestamp,
       };
 
       await saveStorageLocation(currentLocation);
@@ -45,9 +47,8 @@ export async function startLocationTask() {
       accuracy: Accuracy.Highest,
       distanceInterval: 1,
       timeInterval: 1000,
-      showsBackgroundLocationIndicator: true,
-      pausesUpdatesAutomatically: false,
-      activityType: ActivityType.AutomotiveNavigation
+      deferredUpdatesDistance: 0,
+      deferredUpdatesInterval: 0,
     });
   } catch (error) {
     console.log(error);
